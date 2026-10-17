@@ -1,20 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker from '../src/index.js';
-
-test('rejects partner domain', async () => {
- const res=await worker.fetch(new Request('https://ecbtax.com/'),{});
- assert.equal(res.status,403);
-});
-test('does not expose unapproved legal text', async () => {
- const res=await worker.fetch(new Request('https://firmsfinder.eu/legal/privacy'),{});
- assert.equal(res.status,503);
-});
-test('requires explicit upstream configuration', async () => {
- const res=await worker.fetch(new Request('https://firmsfinder.eu/'),{});
- assert.equal(res.status,503);
-});
-test('rejects recursive upstream', async () => {
- const res=await worker.fetch(new Request('https://firmsfinder.eu/'),{UPSTREAM_ORIGIN:'https://firmsfinder.eu'});
- assert.equal(res.status,500);
-});
+import worker,{ALLOWED_HOSTS,DOCUMENTS} from '../src/index.js';
+const pilot={PILOT_ENABLED:'true'};
+test('16 approved inventory domains, partner excluded',()=>{assert.equal(ALLOWED_HOSTS.size,16);assert.equal(ALLOWED_HOSTS.has('ecbtax.com'),false);});
+test('14 unique legal documents',()=>{assert.equal(DOCUMENTS.length,14);assert.equal(new Set(DOCUMENTS.map(d=>d[0])).size,14);});
+test('rejects partner domain',async()=>{assert.equal((await worker.fetch(new Request('https://ecbtax.com/'),pilot)).status,403);});
+test('blocks non-pilot domain',async()=>{assert.equal((await worker.fetch(new Request('https://aiventure.ro/'),pilot)).status,403);});
+test('pilot off by default',async()=>{assert.equal((await worker.fetch(new Request('https://firmsfinder.eu/'),{})).status,403);});
+test('unapproved legal document not served',async()=>{assert.equal((await worker.fetch(new Request('https://firmsfinder.eu/legal/privacy'),pilot)).status,503);});
+test('approved draft document rendered only in explicit pilot',async()=>{const r=await worker.fetch(new Request('https://firmsfinder.eu/legal/privacy'),{...pilot,LEGAL_CONTENT_APPROVED:'true'});assert.equal(r.status,200);assert.match(await r.text(),/Politica de confidențialitate/);assert.equal(r.headers.get('X-Robots-Tag'),'noindex,nofollow');});
+test('requires upstream',async()=>{assert.equal((await worker.fetch(new Request('https://firmsfinder.eu/'),pilot)).status,503);});
+test('rejects recursive upstream',async()=>{assert.equal((await worker.fetch(new Request('https://firmsfinder.eu/'),{...pilot,UPSTREAM_ORIGIN:'https://firmsfinder.eu'})).status,500);});
