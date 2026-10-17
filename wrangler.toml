@@ -1,0 +1,5 @@
+name = "aiventure-legal-worker-0006h"
+main = "src/index.js"
+compatibility_date = "2026-10-17"
+workers_dev = true
+# No production routes. No KV.
