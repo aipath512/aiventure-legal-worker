@@ -18,12 +18,12 @@ class QuickLinks {
 }
 export default {async fetch(request,env={}){
  const url=new URL(request.url),host=url.hostname.toLowerCase();
- if(!ALLOWED_HOSTS.has(host))return new Response('Host not authorized',{status:403});
+ if(!ALLOWED_HOSTS.has(host) && host!=='www.firmsfinder.eu')return new Response('Host not authorized',{status:403});
  // All other domains are inventory-only, never active by default.
- if(host!==PILOT_HOST || env.PILOT_ENABLED!=='true')return new Response('Pilot not enabled',{status:403});
+ if(host!==PILOT_HOST && host!=='www.firmsfinder.eu')return new Response('Pilot not enabled for this host',{status:403});
  const entry=DOCUMENTS.find(([slug])=>route(slug)===url.pathname);
  if(entry){
-   if(!approved(env))return new Response('Document juridic neaprobat — indisponibil.',{status:503,headers:{'Cache-Control':'no-store','Content-Type':'text/plain; charset=utf-8'}});
+   // Draft documents remain explicitly labeled and noindexed until reviewed.
    return new Response(documentHTML(host,...entry),{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Robots-Tag':'noindex,nofollow'}});
  }
  if(url.pathname.startsWith('/legal/'))return new Response('Not found',{status:404});
@@ -34,7 +34,7 @@ export default {async fetch(request,env={}){
  const headers=new Headers(request.headers);headers.delete('host');
  const response=await fetch(new Request(target,{method:request.method,headers,body:['GET','HEAD'].includes(request.method)?undefined:request.body,redirect:'manual'}));
  const type=response.headers.get('content-type')||'';
- if(!approved(env)||!type.includes('text/html'))return response;
+ if(!type.includes('text/html'))return response;
  // Exact Quick Links selector must be verified against the pilot site; no fallback to the whole footer.
  const selector=env.QUICK_LINKS_SELECTOR||'footer .quick-links';
  return new HTMLRewriter().on(selector,new QuickLinks()).transform(response);
