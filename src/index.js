@@ -1,22 +1,41 @@
-// LEGAL WORKER 0006H — DRAFT; no production routes configured.
-// Legal pages are deliberately NOT published until approved legal text exists.
-const DOMAINS = new Set(["1clic-ia.eu","1clic-ia.fr","5thelement.ai","ai-lens.eu","aireadyinjector.com","aiventure.ro","aiventure.uk","b2b-ai-library.org","eu-112.eu","eu-112.ro","eu-ai-act-ready.eu","eu-ai-act.ro","eu-ai-audit.eu","eu-ai-ready.eu","firmsfinder.eu","the3webs.com"]);
-const PAGES = [["privacy","Politica de confidențialitate"],["terms","Termeni și condiții"],["cookies","Politica de cookies"],["disclaimer","Declinarea responsabilității"],["legal-notice","Mențiuni legale"],["gdpr-rights","Drepturi GDPR"],["data-retention","Retenția datelor"],["security","Securitatea informațiilor"],["acceptable-use","Utilizare acceptabilă"],["ai-transparency","Transparență AI"],["eu-ai-act","Informații EU AI Act"],["human-oversight","Supraveghere umană"],["accessibility","Accesibilitate"],["legal-contact","Contact juridic"]];
-const COMPANY = {name:"AIVENTURE S.R.L.",cui:"51415878",registry:"J2025016406000",representative:"Dan Ionescu"};
-const escapeHTML = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const links = () => '<nav id="aiventure-legal-quick-links" aria-label="Legături juridice"><h3>Legal — Quick Links</h3><ul>'+PAGES.map(([slug,label])=>'<li><a href="/legal/'+slug+'">'+escapeHTML(label)+'</a></li>').join("")+'</ul></nav>';
-class FooterLinks {element(el){el.append(links(),{html:true});}}
-export default {async fetch(request,env){
- const url=new URL(request.url), host=url.hostname.toLowerCase();
- // Explicit opt-in: route only approved hosts through this Worker.
- if(!DOMAINS.has(host)) return new Response("Host not authorized",{status:403});
- if(url.pathname.startsWith("/legal/")) return new Response("Document juridic neaprobat — indisponibil.",{status:503,headers:{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store"}});
- // Proxy requires an explicit upstream, preventing accidental self-recursion.
- if(!env.UPSTREAM_ORIGIN) return new Response("UPSTREAM_ORIGIN not configured",{status:503});
- const upstream=new URL(env.UPSTREAM_ORIGIN);
- if(upstream.hostname===host) return new Response("Recursive upstream blocked",{status:500});
+// LEGAL WORKER 0006H — development draft. No production route configured.
+export const ALLOWED_HOSTS = new Set(["1clic-ia.eu","1clic-ia.fr","5thelement.ai","ai-lens.eu","aireadyinjector.com","aiventure.ro","aiventure.uk","b2b-ai-library.org","eu-112.eu","eu-112.ro","eu-ai-act-ready.eu","eu-ai-act.ro","eu-ai-audit.eu","eu-ai-ready.eu","firmsfinder.eu","the3webs.com"]);
+export const DOCUMENTS = [["privacy","Politica de confidențialitate",["Operatorul datelor: AIVENTURE S.R.L., CUI 51415878. Această pagină este un proiect informativ care necesită validare înainte de publicarea în producție.","Datele pot include informațiile trimise voluntar prin formulare, date tehnice necesare funcționării și informații de contact pentru solicitări comerciale.","Temeiurile juridice, destinatarii, transferurile internaționale și perioadele concrete de păstrare trebuie confirmate în registrul real al prelucrărilor.","Persoanele vizate pot solicita acces, rectificare, ștergere, restricționare, portabilitate și pot formula opoziție în condițiile GDPR."]],["terms","Termeni și condiții",["Serviciile și funcțiile disponibile diferă între domenii. Descrierile publice nu constituie automat ofertă contractuală fermă.","Utilizatorii trebuie să respecte legea, drepturile terților și limitele tehnice publicate pentru fiecare serviciu.","Prețurile, livrabilele, condițiile de plată și răspunderea contractuală sunt stabilite prin oferta și contractul acceptate de părți.","Orice dispoziție privind limitarea răspunderii se aplică numai în măsura permisă de legislația aplicabilă."]],["cookies","Politica de cookies",["Cookie-urile strict necesare pot fi folosite pentru funcționarea și securitatea serviciului.","Cookie-urile opționale de analiză sau marketing necesită evaluare și, unde legea impune, consimțământ anterior activării.","Lista efectivă a cookie-urilor, furnizorilor, duratelor și opțiunile de retragere a consimțământului trebuie auditate separat pe fiecare domeniu."]],["disclaimer","Declinarea responsabilității",["Informațiile prezentate au caracter general și nu reprezintă consultanță juridică, fiscală sau financiară personalizată.","Răspunsurile generate de sisteme AI pot conține erori și trebuie verificate înaintea deciziilor importante.","Nicio funcție demonstrativă nu dovedește de la sine conformitatea legală sau existența unei tranzacții reale."]],["legal-notice","Mențiuni legale",["Denumire: AIVENTURE S.R.L.","CUI: 51415878. Număr de înregistrare: J2025016406000. EUID: ROONRC.J2025016406000.","Sediu declarat: București, Sector 1, Drumul Pădurea Pustnicu nr. 14A/C, Corp A, Etaj 2, Ap. 5.","Reprezentantul legal, canalele oficiale de contact și eventualele autorizări profesionale trebuie confirmate înainte de publicarea finală."]],["gdpr-rights","Exercitarea drepturilor GDPR",["Drepturile persoanei vizate includ accesul, rectificarea, ștergerea, restricționarea, portabilitatea și opoziția, în limitele GDPR.","Cererile trebuie transmise prin canalul oficial de contact verificat al operatorului; identitatea poate fi verificată proporțional cu riscul.","Termenul uzual de răspuns este o lună, cu posibilitatea prelungirii conform art. 12 GDPR.","Se poate depune plângere la autoritatea de supraveghere competentă."]],["data-retention","Păstrarea și ștergerea datelor",["Datele trebuie păstrate numai atât cât este necesar scopului și obligațiilor legale aplicabile.","Perioadele concrete se stabilesc pe categorii de date și pe fiecare serviciu; nu sunt declarate aici perioade neverificate.","La expirarea perioadei aplicabile, datele sunt șterse sau anonimizate conform procedurilor validate."]],["security","Securitatea informațiilor",["Măsurile de securitate trebuie alese proporțional cu riscurile și cu natura datelor.","Controlul accesului, gestionarea secretelor, jurnalizarea, copiile de siguranță și răspunsul la incidente necesită dovezi tehnice verificabile.","Această pagină nu reprezintă certificare de securitate sau garanție de absență a incidentelor."]],["acceptable-use","Utilizare acceptabilă",["Sunt interzise accesul neautorizat, abuzul automatizărilor, introducerea de conținut ilegal și încercările de perturbare a serviciilor.","Accesul programatic și utilizarea agenților sunt permise numai în limitele tehnice și contractuale aprobate.","Disponibilitatea unor capabilități tehnice nu echivalează cu permisiunea de executare a tranzacțiilor."]],["ai-transparency","Transparența sistemelor AI",["Funcțiile bazate pe AI trebuie identificate acolo unde obligațiile aplicabile impun transparență.","Rezultatele automate pot fi incomplete sau inexacte; sursele, limitele și nivelul de încredere trebuie evaluate contextual.","Afirmațiile despre performanță, verificare sau conformitate necesită probe și nu pot fi deduse doar din generarea unui răspuns."]],["eu-ai-act","Informații privind Regulamentul UE privind IA",["Obligațiile aplicabile depind de rolul operatorului, scopul sistemului, clasificarea riscului și calendarul normativ relevant.","Nu se afirmă că toate serviciile sunt conforme doar prin existența acestei pagini.","Evaluările, documentația și controalele trebuie efectuate pentru fiecare sistem și caz de utilizare."]],["human-oversight","Supraveghere umană",["Operațiunile cu efecte juridice sau comerciale pot necesita aprobare umană explicită, în funcție de mandat și risc.","Agenții nu trebuie să inventeze oferte, prețuri sau permisiuni în timpul tranzacției.","Evenimentele de aprobare și execuție trebuie păstrate ca dovezi verificabile când arhitectura serviciului o cere."]],["accessibility","Accesibilitate",["Obiectivul este furnizarea de conținut lizibil, navigabil prin tastatură și compatibil cu tehnologiile asistive.","Nivelul de conformitate WCAG nu este declarat fără audit de accesibilitate și remedierea neconformităților constatate.","Problemele de accesibilitate pot fi raportate prin canalul de contact oficial al site-ului, după verificarea acestuia."]],["legal-contact","Contact juridic",["Operator: AIVENTURE S.R.L., CUI 51415878.","Sediu: București, Sector 1, Drumul Pădurea Pustnicu nr. 14A/C, Corp A, Etaj 2, Ap. 5.","Adresa de e-mail și numărul de telefon oficial pentru solicitări juridice și GDPR trebuie confirmate; nu se publică date inventate."]]];
+export const PILOT_HOST = 'firmsfinder.eu';
+const escapeHtml = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const route = slug => '/legal/'+slug;
+const approved = env => env.LEGAL_CONTENT_APPROVED === 'true';
+function documentHTML(host,slug,title,paragraphs){
+ const links=DOCUMENTS.map(([s,t])=>'<li><a href="'+route(s)+'">'+escapeHtml(t)+'</a></li>').join('');
+ return '<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>'+escapeHtml(title)+' — AiVenture</title><link rel="canonical" href="https://'+host+route(slug)+'"><style>body{font:17px/1.65 system-ui,sans-serif;max-width:850px;margin:40px auto;padding:0 20px;color:#17212c}a{color:#087b86}nav ul{columns:2}main{margin:2rem 0}small{color:#555}</style></head><body><header><a href="/">← Acasă</a><p><strong>AiVenture — document în curs de validare juridică</strong></p></header><main><h1>'+escapeHtml(title)+'</h1>'+paragraphs.map(p=>'<p>'+escapeHtml(p)+'</p>').join('')+'</main><nav aria-label="Alte documente juridice"><h2>Documente juridice</h2><ul>'+links+'</ul></nav><footer><small>Versiune de lucru 0006H · Neaprobată pentru producție</small></footer></body></html>';
+}
+function linksHTML(){
+ return '<div data-aiventure-legal="0006H"><span>Legal</span><ul>'+DOCUMENTS.map(([s,t])=>'<li><a href="'+route(s)+'">'+escapeHtml(t)+'</a></li>').join('')+'</ul></div>';
+}
+class QuickLinks {
+ constructor(){this.seen=false;}
+ element(el){this.seen=true;el.append(linksHTML(),{html:true});}
+}
+export default {async fetch(request,env={}){
+ const url=new URL(request.url),host=url.hostname.toLowerCase();
+ if(!ALLOWED_HOSTS.has(host))return new Response('Host not authorized',{status:403});
+ // All other domains are inventory-only, never active by default.
+ if(host!==PILOT_HOST || env.PILOT_ENABLED!=='true')return new Response('Pilot not enabled',{status:403});
+ const entry=DOCUMENTS.find(([slug])=>route(slug)===url.pathname);
+ if(entry){
+   if(!approved(env))return new Response('Document juridic neaprobat — indisponibil.',{status:503,headers:{'Cache-Control':'no-store','Content-Type':'text/plain; charset=utf-8'}});
+   return new Response(documentHTML(host,...entry),{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Robots-Tag':'noindex,nofollow'}});
+ }
+ if(url.pathname.startsWith('/legal/'))return new Response('Not found',{status:404});
+ if(!env.UPSTREAM_ORIGIN)return new Response('UPSTREAM_ORIGIN not configured',{status:503});
+ let upstream;try{upstream=new URL(env.UPSTREAM_ORIGIN);}catch{return new Response('Invalid upstream',{status:500});}
+ if(upstream.hostname===host)return new Response('Recursive upstream blocked',{status:500});
  const target=new URL(url.pathname+url.search,upstream);
- const response=await fetch(new Request(target,request));
- if(!response.headers.get("content-type")?.includes("text/html")) return response;
- return new HTMLRewriter().on("footer",new FooterLinks()).transform(response);
+ const headers=new Headers(request.headers);headers.delete('host');
+ const response=await fetch(new Request(target,{method:request.method,headers,body:['GET','HEAD'].includes(request.method)?undefined:request.body,redirect:'manual'}));
+ const type=response.headers.get('content-type')||'';
+ if(!approved(env)||!type.includes('text/html'))return response;
+ // Exact Quick Links selector must be verified against the pilot site; no fallback to the whole footer.
+ const selector=env.QUICK_LINKS_SELECTOR||'footer .quick-links';
+ return new HTMLRewriter().on(selector,new QuickLinks()).transform(response);
 }};
